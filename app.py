@@ -1,15 +1,6 @@
-from flask import Flask
+from flask import Flask, request
 import json
-import mariadb
-
-config = {
-    'host': '127.0.0.1',
-    'port': 3306,
-    'user': 'root',
-    'password': 'obelix',
-    'database': 'todos_db'
-}
-
+from db import delete_todo, get_todo, get_todos, add_todo, update_todo, commit, rollback
 
 app = Flask(__name__)
 
@@ -20,23 +11,42 @@ def hello():
 
 # Ruta para devolver todos los ToDos.
 @app.route('/api/todos', methods=['GET'])
-def index():
-   # Conexión a MariaDB.
-   conn = mariadb.connect(**config)
-   # Creación de cursor.
-   cur = conn.cursor()
-   # Ejecutamos la instrucción SQL.
-   cur.execute("select * from todos")
+def api_get_todos():
+    items = get_todos()
+    return json.dumps([item.as_dict() for item in items])
 
-   # Serializamos en JSON....
-   row_headers=[x[0] for x in cur.description]
-   rv = cur.fetchall()
-   json_data=[]
-   for result in rv:
-        json_data.append(dict(zip(row_headers,result)))
+# Ruta para devolver un Todo en particular en función de un id..
+@app.route('/api/todo/:id', methods=['GET'])
+def api_get_todo(id):
+    item = get_todo(id)
+    return item.as_json()
 
-   # Y devolvemos todo.
-   return json.dumps(json_data)
+# Ruta para agregar un Todo.
+@app.route('/api/todo', methods=['POST'])
+def api_add_todo():
+    request_data = request.get_json()
+    texto = request_data["texto"]
+    item = add_todo(texto)
+    commit()
+    return item.as_json()
+
+# Ruta para modificar un Todo.
+@app.route('/api/todo/:id', methods=['PUT'])
+def api_update_todo(id):
+    request_data = request.get_json()
+    texto = request_data["texto"]
+    item = update_todo(id, texto)
+    commit()
+    return item.as_json()
+
+# Ruta para eliminar un Todo.
+@app.route('/api/todo/:id', methods=['DELETE'])
+def api_delete_todo(id):
+    delete_todo(id)
+    commit()
+    return json.dumps({"status": "ok"})
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)

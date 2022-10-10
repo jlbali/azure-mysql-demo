@@ -1,2 +1,5 @@
 flask
 mariadb
+sqlalchemy
+PyMySQL
+requests
